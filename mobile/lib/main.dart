@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:camera/camera.dart';
+import 'package:tflite_flutter/tflite_flutter.dart';
+import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
-void main() {
+late List<CameraDescription> cameras;
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  cameras = await availableCameras();
   runApp(const GramAIApp());
 }
 
@@ -32,7 +41,7 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.green[700],
         title: const Text(
-          'ನಮಸ್ಕಾರ ರೈತ ಬಂಧುಗಳೇ 👋',
+          'ನಮಸ್ಕಾರ ರೈತ ಬಂಧುಗಳೇ ',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
@@ -47,11 +56,8 @@ class HomeScreen extends StatelessWidget {
               title: "ಬೆಳೆ ರೋಗ\nಗುರುತಿಸಿ",
               icon: Icons.camera_alt,
               color: Colors.green,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Camera module coming soon!")),
-                );
-              },
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const PestDetectionScreen())),
             ),
             const ModuleCard(
               title: "ಆರೋಗ್ಯ\nತಪಾಸಣೆ",
@@ -111,5 +117,70 @@ class ModuleCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class PestDetectionScreen extends StatefulWidget {
+  const PestDetectionScreen({super.key});
+
+  @override
+  State<PestDetectionScreen> createState() => _PestDetectionScreenState();
+}
+
+class _PestDetectionScreenState extends State<PestDetectionScreen> {
+  CameraController? controller;
+  bool isDetecting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = CameraController(cameras[0], ResolutionPreset.high);
+    controller!.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {});
+      controller!.startImageStream((image) {
+        if (!isDetecting) {
+          isDetecting = true;
+          // Future detection will go here
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller == null || !controller!.value.isInitialized) {
+      return const Scaffold(
+          body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("ಬೆಳೆ ರೋಗ ಗುರುತಿಸಿ")),
+      body: Stack(
+        children: [
+          CameraPreview(controller!),
+          const Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                "ಎಲೆಯನ್ನು ಕ್ಯಾಮೆರಾದಲ್ಲಿ ತೋರಿಸಿ\n(Live detection coming in 10 mins!)",
+                style: TextStyle(
+                    color: Colors.white,
+                    backgroundColor: Colors.black54,
+                    fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
   }
 }
